@@ -3,43 +3,89 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <iostream>
+#include <fstream>
+#include <cstring>
+#define SIZE 20480
 
+
+void send_file_data(std::ifstream& file, int sockfd, sockaddr_in& addr)
+{
+  int n;
+  char buffer[SIZE];
+
+  // Sending the data
+  while (file.getline(buffer, SIZE))
+  {
+    std::cout << "[SENDING] Data: " << buffer << std::endl;
+
+    n = sendto(sockfd, buffer, SIZE, 0, (struct sockaddr*)&addr, sizeof(addr));
+    if (n == -1)
+    {
+      perror("[ERROR] sending data to the server.");
+      exit(1);
+    }
+    std::memset(buffer, 0, SIZE);
+  }
+
+  // Sending the 'END'
+  std::strcpy(buffer, "END");
+  sendto(sockfd, buffer, SIZE, 0, (struct sockaddr*)&addr, sizeof(addr));
+
+  file.close();
+}
 int main()
 {
+     // Defining the IP and Port
+    char* ip = "192.168.1.66";
+    const int port = 8080;
+
+    // Defining variables
+ 
+    std::string filename = "client.bin";
+    std::ifstream file(filename, std::ios::binary);
     // make socket for transmission
     int fd = socket(PF_INET, SOCK_DGRAM, 0);
 
-    if (fd == -1)
+    if (fd <0 )
     {
         perror("socket");
         exit(-1);
     }
 
     //server_info
-    struct sockaddr_in saddr;
+    sockaddr_in saddr;
     saddr.sin_family = AF_INET;
-    saddr.sin_port = htons(9999);
+    saddr.sin_port = htons(port);
     //inet_pton(AF_INET, "127.0.0.1", &saddr.sin_addr.s_addr);
-    inet_pton(AF_INET, "192.168.1.66", &saddr.sin_addr.s_addr);
+    inet_pton(AF_INET, ip, &saddr.sin_addr.s_addr);
 
+    // Reading the text file
+    if (!file.is_open())
+    {
+        perror("[ERROR] reading the file");
+        exit(1);
+    }
 
     int num = 0;
+
+    send_file_data(file, fd, saddr);
     // Communication
-    while (1)
-    {
-        char buf[128];
-        sprintf(buf, "hello ,i am client %d\n", num++);
+    // while (1)
+    // {
+    //     char buf[128];
+    //     sprintf(buf, "hello ,i am client %d\n", num++);
 
-        //send
-        sendto(fd, buf, strlen(buf) + 1,0,(struct sockaddr*)&saddr,sizeof(saddr));
+    //     //send
+    //     sendto(fd, buf, strlen(buf) + 1,0,(struct sockaddr*)&saddr,sizeof(saddr));
 
-        //receive
-        int num = recvfrom(fd, buf, sizeof(buf), 0, NULL, NULL);
+    //     //receive
+    //     int num = recvfrom(fd, buf, sizeof(buf), 0, NULL, NULL);
 
-        printf("server say:%s\n", buf);
+    //     printf("server say:%s\n", buf);
 
-        sleep(1);
-    }
+    //     sleep(1);
+    // }
 
     close(fd);
 
